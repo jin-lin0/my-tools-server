@@ -23,11 +23,10 @@ app.use("/messages", messagesRouter);
 sequelize
   .sync()
   .then(() => {
-    // 启动服务器
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-    });
+    console.log("Database synced successfully");
   })
   .catch((err) => {
     console.error("Unable to sync database:", err);
   });
+
+module.exports = app;
