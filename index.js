@@ -23,6 +23,12 @@ app.use("/messages", messagesRouter);
 sequelize
   .sync()
   .then(() => {
+    // 根据环境决定是否启动监听
+    if (!process.env.VERCEL) {
+      app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+      });
+    }
     console.log("Database synced successfully");
   })
   .catch((err) => {

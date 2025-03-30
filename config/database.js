@@ -9,6 +9,7 @@ const sequelize = new Sequelize(
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
     dialect: "mysql",
+    dialectModule: require("mysql2"), // 指定使用 mysql2 模块
     logging: false,
   }
 );
