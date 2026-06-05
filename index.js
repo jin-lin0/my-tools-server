@@ -19,6 +19,10 @@ app.get("/", (req, res) => {
 const messagesRouter = require("./routes/messages");
 app.use("/messages", messagesRouter);
 
+// 网易云音乐 API 路由
+const neteaseRouter = require("./routes/netease");
+app.use("/netease", neteaseRouter);
+
 // 同步数据库模型
 sequelize
   .sync()
