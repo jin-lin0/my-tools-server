@@ -152,4 +152,14 @@ router.get("/search/suggest", async (req, res) => {
   }
 });
 
+// 获取榜单列表
+router.get("/toplist", async (req, res) => {
+  try {
+    const result = await NeteaseCloudMusicApi.toplist_detail();
+    res.json(result.body);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
