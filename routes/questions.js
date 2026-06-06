@@ -8,7 +8,9 @@ const sequelize = require("../config/database");
 // 获取所有分类
 router.get("/categories", async (req, res) => {
   try {
-    const categories = await Category.findAll();
+    const categories = await Category.findAll({
+      include: [{ model: Question, attributes: ["id"] }],
+    });
     res.json(categories);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -21,6 +23,41 @@ router.post("/categories", async (req, res) => {
     const { name, description } = req.body;
     const category = await Category.create({ name, description });
     res.status(201).json(category);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 更新分类
+router.put("/categories/:id", async (req, res) => {
+  try {
+    const category = await Category.findByPk(req.params.id);
+    if (!category) {
+      return res.status(404).json({ error: "分类不存在" });
+    }
+    await category.update(req.body);
+    res.json(category);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 删除分类
+router.delete("/categories/:id", async (req, res) => {
+  try {
+    const category = await Category.findByPk(req.params.id);
+    if (!category) {
+      return res.status(404).json({ error: "分类不存在" });
+    }
+    // 检查分类下是否有题目
+    const questionCount = await Question.count({
+      where: { categoryId: req.params.id },
+    });
+    if (questionCount > 0) {
+      return res.status(400).json({ error: "该分类下还有题目，无法删除" });
+    }
+    await category.destroy();
+    res.json({ message: "删除成功" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

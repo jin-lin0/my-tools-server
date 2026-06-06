@@ -17,15 +17,15 @@ app.get("/", (req, res) => {
 
 // 消息路由
 const messagesRouter = require("./routes/messages");
-app.use("/messages", messagesRouter);
+app.use("/api/messages", messagesRouter);
 
 // 网易云音乐 API 路由
 const neteaseRouter = require("./routes/netease");
-app.use("/netease", neteaseRouter);
+app.use("/api/netease", neteaseRouter);
 
 // 面试题库路由
 const questionsRouter = require("./routes/questions");
-app.use("/questions", questionsRouter);
+app.use("/api/questions", questionsRouter);
 
 // 同步数据库模型
 sequelize
