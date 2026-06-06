@@ -23,6 +23,10 @@ app.use("/messages", messagesRouter);
 const neteaseRouter = require("./routes/netease");
 app.use("/netease", neteaseRouter);
 
+// 面试题库路由
+const questionsRouter = require("./routes/questions");
+app.use("/questions", questionsRouter);
+
 // 同步数据库模型
 sequelize
   .sync()
