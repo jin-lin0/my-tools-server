@@ -15,6 +15,15 @@ app.get("/", (req, res) => {
   res.send("AI Chat Server is running");
 });
 
+// 健康检查（公开）
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// 管理员认证路由
+const authRouter = require("./routes/auth");
+app.use("/api/auth", authRouter);
+
 // 消息路由
 const messagesRouter = require("./routes/messages");
 app.use("/api/messages", messagesRouter);
@@ -23,7 +32,7 @@ app.use("/api/messages", messagesRouter);
 const neteaseRouter = require("./routes/netease");
 app.use("/api/netease", neteaseRouter);
 
-// 面试题库路由
+// 面试题库路由 - 管理操作需要认证
 const questionsRouter = require("./routes/questions");
 app.use("/api/questions", questionsRouter);
 

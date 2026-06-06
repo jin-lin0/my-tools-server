@@ -4,6 +4,7 @@ const Question = require("../models/question");
 const Category = require("../models/category");
 const { Op } = require("sequelize");
 const sequelize = require("../config/database");
+const { authMiddleware } = require("../middleware/auth");
 
 // 获取所有分类
 router.get("/categories", async (req, res) => {
@@ -18,7 +19,7 @@ router.get("/categories", async (req, res) => {
 });
 
 // 创建分类
-router.post("/categories", async (req, res) => {
+router.post("/categories", authMiddleware, async (req, res) => {
   try {
     const { name, description } = req.body;
     const category = await Category.create({ name, description });
@@ -29,7 +30,7 @@ router.post("/categories", async (req, res) => {
 });
 
 // 更新分类
-router.put("/categories/:id", async (req, res) => {
+router.put("/categories/:id", authMiddleware, async (req, res) => {
   try {
     const category = await Category.findByPk(req.params.id);
     if (!category) {
@@ -43,7 +44,7 @@ router.put("/categories/:id", async (req, res) => {
 });
 
 // 删除分类
-router.delete("/categories/:id", async (req, res) => {
+router.delete("/categories/:id", authMiddleware, async (req, res) => {
   try {
     const category = await Category.findByPk(req.params.id);
     if (!category) {
@@ -140,7 +141,7 @@ router.get("/random/:count", async (req, res) => {
 });
 
 // 创建题目
-router.post("/", async (req, res) => {
+router.post("/", authMiddleware, async (req, res) => {
   try {
     const {
       title,
@@ -169,7 +170,7 @@ router.post("/", async (req, res) => {
 });
 
 // 更新题目
-router.put("/:id", async (req, res) => {
+router.put("/:id", authMiddleware, async (req, res) => {
   try {
     const question = await Question.findByPk(req.params.id);
     if (!question) {
@@ -183,7 +184,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // 删除题目
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authMiddleware, async (req, res) => {
   try {
     const question = await Question.findByPk(req.params.id);
     if (!question) {
@@ -197,7 +198,7 @@ router.delete("/:id", async (req, res) => {
 });
 
 // 批量导入题目
-router.post("/import", async (req, res) => {
+router.post("/import", authMiddleware, async (req, res) => {
   try {
     const { questions } = req.body;
     if (!Array.isArray(questions) || questions.length === 0) {
