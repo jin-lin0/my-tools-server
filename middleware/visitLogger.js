@@ -11,19 +11,11 @@ function isLocalIP(ip) {
   return /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1$|::ffff:127\.|localhost$)/.test(ip);
 }
 
-function getGeoFromAllSources(headers) {
-  // 1. 前端浏览器定位（最准）
+function getGeoFromFrontend(headers) {
   const clientGeo = headers["x-client-geo"];
   if (clientGeo) {
     const parts = clientGeo.split(",");
     if (parts[0]) return { country: parts[0], city: parts[1] || "" };
-  }
-  // 2. Vercel 自带头（免费版不准）
-  const country = headers["x-vercel-ip-country"];
-  if (country) {
-    let city = headers["x-vercel-ip-city"] || "";
-    try { city = decodeURIComponent(city); } catch {}
-    return { country, city };
   }
   return null;
 }
@@ -34,7 +26,7 @@ async function visitLogger(req, res, next) {
   const ip = getClientIP(req);
   if (isLocalIP(ip)) return next();
 
-  const geo = getGeoFromAllSources(req.headers);
+  const geo = getGeoFromFrontend(req.headers);
 
   const today = new Date().toISOString().slice(0, 10);
   try {
