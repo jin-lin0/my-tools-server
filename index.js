@@ -10,6 +10,10 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// 访问统计（记录所有 API 请求）
+const visitLogger = require("./middleware/visitLogger");
+app.use(visitLogger);
+
 // 测试路由
 app.get("/", (req, res) => {
   res.send("AI Chat Server is running");
@@ -43,6 +47,10 @@ app.use("/api/market", marketRouter);
 // 用户管理路由
 const usersRouter = require("./routes/users");
 app.use("/api/users", usersRouter);
+
+// 统计路由
+const statsRouter = require("./routes/stats");
+app.use("/api/stats", statsRouter);
 
 // 同步数据库模型（Vercel 环境跳过 sync 以加速冷启动）
 if (!process.env.VERCEL) {

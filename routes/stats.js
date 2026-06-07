@@ -1,0 +1,53 @@
+const express = require("express");
+const { Op } = require("sequelize");
+const VisitLog = require("../models/visitLog");
+const MarketApp = require("../models/marketApp");
+
+const router = express.Router();
+
+const todayStart = () => new Date().toISOString().slice(0, 10);
+
+async function todayCreatedCount(model) {
+  return model.count({
+    where: {
+      createdAt: { [Op.gte]: todayStart() },
+    },
+  });
+}
+
+async function totalCreatedCount(model) {
+  return model.count();
+}
+
+router.get("/dashboard", async (req, res) => {
+  try {
+    const todayApps = await todayCreatedCount(MarketApp);
+
+    let todayQuestions = 0;
+    try {
+      const Question = require("../models/question");
+      todayQuestions = await todayCreatedCount(Question);
+    } catch {}
+
+    const todayVisits = await VisitLog.sum("count", {
+      where: { date: todayStart() },
+    });
+    const totalVisits = await VisitLog.sum("count");
+
+    res.json({
+      success: true,
+      data: {
+        todayNewApps: todayApps,
+        todayNewQuestions: todayQuestions,
+        todayVisits: todayVisits || 0,
+        totalVisits: totalVisits || 0,
+        totalApps: await totalCreatedCount(MarketApp),
+      },
+    });
+  } catch (error) {
+    console.error("获取统计数据错误:", error);
+    res.status(500).json({ error: "服务器内部错误" });
+  }
+});
+
+module.exports = router;
