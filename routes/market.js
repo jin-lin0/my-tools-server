@@ -1,12 +1,11 @@
 const express = require("express");
 const MarketApp = require("../models/marketApp");
-const Admin = require("../models/admin");
+const User = require("../models/user");
 const { authMiddleware, superAdminOnly } = require("../middleware/superAdmin");
 
 const router = express.Router();
 
-// 关联
-MarketApp.belongsTo(Admin, { foreignKey: "uploadedBy", as: "uploader" });
+MarketApp.belongsTo(User, { foreignKey: "uploadedBy", as: "uploader" });
 
 // 获取分类列表
 router.get("/categories", async (req, res) => {
@@ -176,13 +175,13 @@ router.post("/apps", authMiddleware, superAdminOnly, async (req, res) => {
       icon,
       description: description || "",
       version: version || "1.0.0",
-      author: req.admin.username,
+      author: req.user.username,
       category: category || "",
       fileContent,
       size: new Blob([fileContent]).size,
       screenshots: screenshots ? JSON.stringify(screenshots) : null,
       readme: readme || "",
-      uploadedBy: req.admin.id,
+      uploadedBy: req.user.id,
     });
 
     res.status(201).json({

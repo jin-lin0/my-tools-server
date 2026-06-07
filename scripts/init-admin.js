@@ -8,29 +8,24 @@
  * 会提示输入用户名和密码
  */
 
-const Admin = require("../models/admin");
+const User = require("../models/user");
 const sequelize = require("../config/database");
 
 async function initAdmin() {
   try {
-    // 连接数据库
     await sequelize.authenticate();
     console.log("✅ 数据库连接成功");
 
-    // 同步模型
-    await Admin.sync();
-    console.log("✅ 管理员模型同步完成");
+    await User.sync();
+    console.log("✅ 用户模型同步完成");
 
-    // 检查是否已有管理员
-    const count = await Admin.count();
+    const count = await User.count();
     if (count > 0) {
-      console.log(`⚠️  已有 ${count} 个管理员账号，是否需要覆盖？(y/n)`);
-      // 这里简单处理，直接退出
-      console.log("💡 如需创建新管理员，请先删除现有管理员记录");
+      console.log(`⚠️  已有 ${count} 个用户记录`);
+      console.log("💡 如需创建新超级管理员，请使用管理员后台或 API");
       process.exit(0);
     }
 
-    // 提示输入信息
     const readline = require("readline");
     const rl = readline.createInterface({
       input: process.stdin,
@@ -42,7 +37,6 @@ async function initAdmin() {
         rl.question("请确认密码: ", (confirmPassword) => {
           rl.close();
 
-          // 验证
           if (username.length < 3) {
             console.log("❌ 用户名至少需要3个字符");
             process.exit(1);
@@ -58,17 +52,17 @@ async function initAdmin() {
             process.exit(1);
           }
 
-          // 创建管理员
-          Admin.create({
+          User.create({
             username,
-            password, // 模型会自动加密
+            password,
             role: "super_admin",
             isActive: true,
+            installedApps: [],
           })
-            .then((admin) => {
+            .then((user) => {
               console.log("✅ 超级管理员创建成功！");
-              console.log(`   用户名: ${admin.username}`);
-              console.log(`   角色: ${admin.role}`);
+              console.log(`   用户名: ${user.username}`);
+              console.log(`   角色: ${user.role}`);
               console.log("\n💡 请妥善保存账号密码信息");
               process.exit(0);
             })

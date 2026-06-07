@@ -40,6 +40,10 @@ app.use("/api/questions", questionsRouter);
 const marketRouter = require("./routes/market");
 app.use("/api/market", marketRouter);
 
+// 用户管理路由
+const usersRouter = require("./routes/users");
+app.use("/api/users", usersRouter);
+
 // 同步数据库模型
 sequelize
   .sync()
