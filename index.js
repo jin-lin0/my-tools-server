@@ -36,6 +36,10 @@ app.use("/api/netease", neteaseRouter);
 const questionsRouter = require("./routes/questions");
 app.use("/api/questions", questionsRouter);
 
+// 应用市场路由
+const marketRouter = require("./routes/market");
+app.use("/api/market", marketRouter);
+
 // 同步数据库模型
 sequelize
   .sync()
