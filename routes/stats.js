@@ -50,4 +50,24 @@ router.get("/dashboard", async (req, res) => {
   }
 });
 
+// 调试：查看请求来源信息
+router.get("/whoami", (req, res) => {
+  const ip =
+    req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+    req.ip ||
+    req.socket?.remoteAddress;
+  res.json({
+    ip,
+    vercel: {
+      country: req.headers["x-vercel-ip-country"] || null,
+      city: req.headers["x-vercel-ip-city"] || null,
+      latitude: req.headers["x-vercel-ip-latitude"] || null,
+      longitude: req.headers["x-vercel-ip-longitude"] || null,
+    },
+    headers: {
+      "x-forwarded-for": req.headers["x-forwarded-for"] || null,
+    },
+  });
+});
+
 module.exports = router;
