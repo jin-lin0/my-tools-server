@@ -44,20 +44,19 @@ app.use("/api/market", marketRouter);
 const usersRouter = require("./routes/users");
 app.use("/api/users", usersRouter);
 
-// 同步数据库模型
-sequelize
-  .sync()
-  .then(() => {
-    // 根据环境决定是否启动监听
-    if (!process.env.VERCEL) {
+// 同步数据库模型（Vercel 环境跳过 sync 以加速冷启动）
+if (!process.env.VERCEL) {
+  sequelize
+    .sync()
+    .then(() => {
       app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
       });
-    }
-    console.log("Database synced successfully");
-  })
-  .catch((err) => {
-    console.error("Unable to sync database:", err);
-  });
+      console.log("Database synced successfully");
+    })
+    .catch((err) => {
+      console.error("Unable to sync database:", err);
+    });
+}
 
 module.exports = app;
