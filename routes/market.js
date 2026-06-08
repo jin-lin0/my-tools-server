@@ -1,26 +1,27 @@
 const express = require("express");
 const MarketApp = require("../models/marketApp");
 const User = require("../models/user");
-const { authMiddleware, superAdminOnly } = require("../middleware/superAdmin");
+const { authMiddleware, adminOnly } = require("../middleware/superAdmin");
+const { optionalAuth } = require("../middleware/auth");
 
 const router = express.Router();
 
 MarketApp.belongsTo(User, { foreignKey: "uploadedBy", as: "uploader" });
 
-// 获取分类列表
+// 获取分类列表（只统计已通过的应用）
 router.get("/categories", async (req, res) => {
   try {
     const categories = await MarketApp.findAll({
       attributes: [
         [require("sequelize").fn("DISTINCT", require("sequelize").col("category")), "category"],
       ],
-      where: { category: { [require("sequelize").Op.ne]: null } },
+      where: { category: { [require("sequelize").Op.ne]: null }, status: "approved" },
       raw: true,
     });
     const counts = {};
     for (const { category } of categories) {
       if (category) {
-        counts[category] = await MarketApp.count({ where: { category } });
+        counts[category] = await MarketApp.count({ where: { category, status: "approved" } });
       }
     }
     res.json({
@@ -33,8 +34,8 @@ router.get("/categories", async (req, res) => {
   }
 });
 
-// 获取应用列表
-router.get("/apps", async (req, res) => {
+// 获取应用列表（公开市场只返回已通过的应用）
+router.get("/apps", optionalAuth, async (req, res) => {
   try {
     const { category, keyword, page = "1", limit = "20" } = req.query;
     const pageNum = Math.max(1, parseInt(page));
@@ -42,6 +43,11 @@ router.get("/apps", async (req, res) => {
     const offset = (pageNum - 1) * limitNum;
 
     const where = {};
+    // 非管理员只看到已通过的应用
+    const isAdmin = req.user && (req.user.role === "admin" || req.user.role === "super_admin");
+    if (!isAdmin) {
+      where.status = "approved";
+    }
     if (category) {
       where.category = category;
     }
@@ -52,22 +58,25 @@ router.get("/apps", async (req, res) => {
       ];
     }
 
+    const attributes = [
+      "id",
+      "name",
+      "icon",
+      "description",
+      "version",
+      "author",
+      "category",
+      "size",
+      "isOfficial",
+      "downloads",
+      "status",
+      "createdAt",
+      "updatedAt",
+    ];
+
     const { rows, count } = await MarketApp.findAndCountAll({
       where,
-      attributes: [
-        "id",
-        "name",
-        "icon",
-        "description",
-        "version",
-        "author",
-        "category",
-        "size",
-        "isOfficial",
-        "downloads",
-        "createdAt",
-        "updatedAt",
-      ],
+      attributes,
       order: [["createdAt", "DESC"]],
       offset,
       limit: limitNum,
@@ -90,7 +99,7 @@ router.get("/apps", async (req, res) => {
 });
 
 // 获取应用详情
-router.get("/apps/:id", async (req, res) => {
+router.get("/apps/:id", optionalAuth, async (req, res) => {
   try {
     const app = await MarketApp.findByPk(req.params.id, {
       attributes: [
@@ -106,12 +115,21 @@ router.get("/apps/:id", async (req, res) => {
         "readme",
         "isOfficial",
         "downloads",
+        "status",
+        "uploadedBy",
         "createdAt",
         "updatedAt",
       ],
     });
 
     if (!app) {
+      return res.status(404).json({ error: "应用不存在" });
+    }
+
+    // 非管理员且非上传者只能查看已通过的应用
+    const isAdmin = req.user && (req.user.role === "admin" || req.user.role === "super_admin");
+    const isOwner = req.user && req.user.id === app.uploadedBy;
+    if (app.status !== "approved" && !isAdmin && !isOwner) {
       return res.status(404).json({ error: "应用不存在" });
     }
 
@@ -131,21 +149,24 @@ router.get("/apps/:id", async (req, res) => {
   }
 });
 
-// 下载应用 JS 包
+// 下载应用 JS 包（只允许下载已通过的应用）
 router.get("/apps/:id/download", async (req, res) => {
   try {
     const app = await MarketApp.findByPk(req.params.id, {
-      attributes: ["fileContent", "name", "version"],
+      attributes: ["fileContent", "name", "version", "status"],
     });
 
     if (!app) {
       return res.status(404).json({ error: "应用不存在" });
     }
 
+    if (app.status !== "approved") {
+      return res.status(403).json({ error: "应用尚未通过审核" });
+    }
+
     // 增加下载计数（异步，不阻塞）
     MarketApp.increment("downloads", { by: 1, where: { id: req.params.id } }).catch(() => {});
 
-    // 返回 JSON，前端拿到后存 IndexedDB
     res.json({
       success: true,
       data: {
@@ -160,8 +181,8 @@ router.get("/apps/:id/download", async (req, res) => {
   }
 });
 
-// 上传应用
-router.post("/apps", authMiddleware, superAdminOnly, async (req, res) => {
+// 上传应用（任何登录用户都可以上传，状态为 pending）
+router.post("/apps", authMiddleware, async (req, res) => {
   try {
     const { name, icon, description, version, category, fileContent, screenshots, readme } =
       req.body;
@@ -182,12 +203,13 @@ router.post("/apps", authMiddleware, superAdminOnly, async (req, res) => {
       screenshots: screenshots ? JSON.stringify(screenshots) : null,
       readme: readme || "",
       uploadedBy: req.user.id,
+      status: "pending",
     });
 
     res.status(201).json({
       success: true,
-      message: "上传成功",
-      data: { id: app.id, name: app.name, version: app.version },
+      message: "上传成功，等待管理员审核",
+      data: { id: app.id, name: app.name, version: app.version, status: app.status },
     });
   } catch (error) {
     console.error("上传应用错误:", error);
@@ -195,8 +217,54 @@ router.post("/apps", authMiddleware, superAdminOnly, async (req, res) => {
   }
 });
 
+// 审核通过应用
+router.post("/apps/:id/approve", authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const app = await MarketApp.findByPk(req.params.id);
+    if (!app) {
+      return res.status(404).json({ error: "应用不存在" });
+    }
+    if (app.status === "approved") {
+      return res.status(400).json({ error: "应用已通过审核" });
+    }
+
+    await app.update({ status: "approved" });
+
+    res.json({
+      success: true,
+      message: "应用已通过审核",
+    });
+  } catch (error) {
+    console.error("审核应用错误:", error);
+    res.status(500).json({ error: "服务器内部错误" });
+  }
+});
+
+// 审核拒绝应用
+router.post("/apps/:id/reject", authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const app = await MarketApp.findByPk(req.params.id);
+    if (!app) {
+      return res.status(404).json({ error: "应用不存在" });
+    }
+    if (app.status === "rejected") {
+      return res.status(400).json({ error: "应用已被拒绝" });
+    }
+
+    await app.update({ status: "rejected" });
+
+    res.json({
+      success: true,
+      message: "应用已拒绝",
+    });
+  } catch (error) {
+    console.error("审核应用错误:", error);
+    res.status(500).json({ error: "服务器内部错误" });
+  }
+});
+
 // 更新应用
-router.put("/apps/:id", authMiddleware, superAdminOnly, async (req, res) => {
+router.put("/apps/:id", authMiddleware, adminOnly, async (req, res) => {
   try {
     const app = await MarketApp.findByPk(req.params.id);
 
@@ -204,7 +272,7 @@ router.put("/apps/:id", authMiddleware, superAdminOnly, async (req, res) => {
       return res.status(404).json({ error: "应用不存在" });
     }
 
-    const { name, icon, description, version, category, fileContent, screenshots, readme } =
+    const { name, icon, description, version, category, fileContent, screenshots, readme, status } =
       req.body;
 
     const updateData = {};
@@ -215,6 +283,7 @@ router.put("/apps/:id", authMiddleware, superAdminOnly, async (req, res) => {
     if (category !== undefined) updateData.category = category;
     if (screenshots !== undefined) updateData.screenshots = JSON.stringify(screenshots);
     if (readme !== undefined) updateData.readme = readme;
+    if (status !== undefined) updateData.status = status;
 
     if (fileContent !== undefined) {
       updateData.fileContent = fileContent;
@@ -234,7 +303,7 @@ router.put("/apps/:id", authMiddleware, superAdminOnly, async (req, res) => {
 });
 
 // 删除应用
-router.delete("/apps/:id", authMiddleware, superAdminOnly, async (req, res) => {
+router.delete("/apps/:id", authMiddleware, adminOnly, async (req, res) => {
   try {
     const app = await MarketApp.findByPk(req.params.id);
 

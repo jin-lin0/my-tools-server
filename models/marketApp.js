@@ -62,6 +62,10 @@ const MarketApp = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false,
     },
+    status: {
+      type: DataTypes.ENUM("pending", "approved", "rejected"),
+      defaultValue: "pending",
+    },
   },
   {
     tableName: "market_apps",
